@@ -358,18 +358,81 @@ function vGoals(){
   const t=today(),from=addDays(t,-29),lg=allLogs().filter(l=>l.date>=from),G=gSum();
   const upRow=u=>`<div class="up"><b>${fd(u.d)} · ${u.p}%</b>${u.s==='tercapai'?' · 🎯 tercapai':''}${u.n?` — ${esc(u.n)}`:''}</div>`;
   const card=g=>{const ps=S.projects.filter(p=>p.goal===g.id),pr=gProg(g),ex=gExp(g),mm=lg.filter(l=>ps.some(p=>p.id===l.proj)).reduce((a,l)=>a+l.min,0),ups=(g.up||[]).slice().reverse(),au=gAuto(g);
-    return `<article class="pn pcard"><div class="top2"><h3>${esc(g.title)}</h3><b class="num" style="font-size:20px">${pr}%</b></div>
+    return `<article class="pn pcard"><div class="top2"><h3><a href="#goal-${esc(g.id)}" style="color:inherit;text-decoration:none">${esc(g.title)}</a></h3><b class="num" style="font-size:20px">${pr}%</b></div>
       <div class="row" style="justify-content:space-between;align-items:center;flex-wrap:nowrap">${gsPill(g)}<span class="pill num">${g.st==='tercapai'?'Tercapai '+fd(g.doneAt):'Seharusnya ~'+ex+'% hari ini'}</span></div>${gBar(g)}
       ${g.ind?`<div class="meta">${esc(g.ind)}</div>`:''}
       <div class="meta"><span>${au!==null&&g.mode!=='manual'?'Otomatis dari '+gPs(g).length+' project':'Progres dari update manual'}</span><span class="num">Fokus 30 hari: ${fm(mm)}</span><span>Target ${fd(gDl(g))}</span></div>
       ${ps.length?`<div class="chips">${ps.map(p=>`<span class="chip" style="cursor:default">${esc(p.name)} · <b class="num">${prog(p)}%</b></span>`).join('')}</div>`:''}
       ${gNeedUp(g)?`<div class="alert amb">⚠ ${gLast(g)?'Belum ada update '+diff(gLast(g),t)+' hari':'Belum pernah di-update'}</div>`:''}
       ${ups.length?`<div class="stack" style="gap:6px">${ups.slice(0,2).map(upRow).join('')}${ups.length>2?`<details><summary>Riwayat update (${ups.length})</summary><div class="stack" style="gap:6px">${ups.slice(2).map(upRow).join('')}</div></details>`:''}</div>`:''}
-      <div class="row" style="justify-content:flex-start"><button class="btn gold sm" data-a="gUp" data-id="${esc(g.id)}">Update progres</button><button class="btn sm" data-a="gEdit" data-id="${esc(g.id)}">Edit</button><button class="btn sm ghost danger" data-a="gDel" data-id="${esc(g.id)}">Hapus</button></div></article>`};
+      <div class="row" style="justify-content:flex-start"><button class="btn gold sm" data-a="gUp" data-id="${esc(g.id)}">Update progres</button><a class="btn sm" href="#goal-${esc(g.id)}" style="text-decoration:none;display:inline-flex;align-items:center;color:inherit">Detail</a><button class="btn sm" data-a="gEdit" data-id="${esc(g.id)}">Edit</button><button class="btn sm ghost danger" data-a="gDel" data-id="${esc(g.id)}">Hapus</button></div></article>`};
   const ord={telat:0,lewat:0,belum:1,ontrack:2,tercapai:3,batal:4};
   const grp=(k,n)=>{const gs=S.goals.filter(g=>g.type===k).sort((a,b)=>ord[gStat(a)]-ord[gStat(b)]);const act=gs.filter(g=>g.st!=='batal'),avg=act.length?Math.round(act.reduce((a,g)=>a+gProg(g),0)/act.length):0;
     return `<section class="stack"><div class="hd"><h2>${n}</h2><span class="pill num">${act.filter(g=>g.st==='tercapai').length}/${act.length} tercapai · rata-rata ${avg}%</span></div>${gs.length?`<div class="grid3">${gs.map(card).join('')}</div>`:'<p class="empty">Belum ada goal.</p>'}</section>`};
   return `<div class="stack"><div class="hd"><div><h1>Goals 2027</h1><p class="sub">${G.ach} dari ${G.n} goal tercapai (${G.pct}%) · ${G.on} on track · <span style="color:var(--red)">${G.late} tertinggal</span> · ${G.need} perlu update. Garis tipis di bar = progres yang seharusnya sudah dicapai hari ini.</p></div><button class="btn gold" data-a="gAdd">+ Goal baru</button></div>${grp('bisnis','Bisnis · Hypospot')}${grp('pribadi','Pribadi · David')}</div>`;
+}
+let gdf='semua',gdn=40;
+function gEvents(g){
+  const ps=S.projects.filter(p=>p.goal===g.id),ev=[];
+  for(const u of g.up||[])ev.push({d:u.d,k:'update',t:u.s==='tercapai'?'🎯 Goal ditandai tercapai':'Update progres goal · '+u.p+'%',n:u.n,ord:3});
+  for(const l of allLogs())if(ps.some(p=>p.id===l.proj))ev.push({d:l.date,k:'kerja',t:l.title,n:l.note,m:l.min,p:pById(l.proj),s:l.start,ord:1});
+  for(const p of ps)for(const m of p.ms||[])if(m.done&&m.at)ev.push({d:m.at,k:'milestone',t:'Milestone selesai: '+m.t,p,ord:2});
+  for(const p of ps)if(p.endAt&&p.st==='selesai')ev.push({d:p.endAt,k:'milestone',t:'Project selesai: '+p.name,p,ord:2});
+  return ev.sort((a,b)=>b.d.localeCompare(a.d)||b.ord-a.ord||(b.s||0)-(a.s||0));
+}
+function vGoalDetail(g){
+  const t=today(),pr=gProg(g),ex=gExp(g),ps=S.projects.filter(p=>p.goal===g.id),ev=gEvents(g);
+  const kerja=ev.filter(e=>e.k==='kerja'),m30=kerja.filter(e=>e.d>=addDays(t,-29)).reduce((a,e)=>a+e.m,0),effAll=ps.reduce((a,p)=>a+(p.eff||0),0);
+  const L={semua:'Semua',update:'Update goal',kerja:'Sesi kerja',milestone:'Milestone'};
+  const fe=ev.filter(e=>gdf==='semua'||e.k===gdf),shown=fe.slice(0,gdn);
+  let lastD='';const tl=shown.map(e=>{const hd=e.d!==lastD?`<li style="border:0;padding:14px 0 4px"><b>${HARI[new Date(e.d+'T12:00').getDay()]}, ${fd(e.d)}</b></li>`:'';lastD=e.d;
+    const ic=e.k==='update'?'◆':e.k==='milestone'?'✓':'▸';
+    return hd+`<li><span style="color:var(--gd);width:1.2em;flex:none;font-weight:800">${ic}</span><div class="grow"><div class="t">${esc(e.t)}</div><div class="meta">${e.k==='kerja'?`<span class="num">${hm(e.s)} · ${fm(e.m)}</span>`:''}${e.p?`<span>${esc(e.p.name)}</span>`:''}<span>${L[e.k]}</span></div>${e.n?`<div class="meta" style="color:var(--ink)">→ ${esc(e.n)}</div>`:''}</div></li>`}).join('');
+  const lastAct=gLast(g);
+  return `<div class="stack">
+  <div><a href="#goals" style="text-decoration:none;font-weight:600">← Semua goals</a></div>
+  <section class="pn"><div class="hd" style="align-items:flex-start"><div><div class="meta" style="margin-bottom:6px">${g.type==='pribadi'?'Pribadi · David':'Bisnis · Hypospot'}</div><h1>${esc(g.title)}</h1>${g.ind?`<p class="sub">Berhasil kalau: ${esc(g.ind)}</p>`:''}</div>
+    <div style="text-align:right"><b class="num" style="font-size:clamp(36px,5vw,48px);line-height:1">${pr}%</b><div style="margin-top:6px">${gsPill(g)}</div></div></div>
+    ${gBar(g)}<div class="meta" style="margin-top:6px"><span class="num">Seharusnya ~${ex}% hari ini</span><span>Mulai ${fd(gStart(g))}</span><span>Target ${fd(gDl(g))}</span>${g.st==='tercapai'?`<span>Tercapai ${fd(g.doneAt)}</span>`:''}</div>
+    <div class="row" style="justify-content:flex-start;margin-top:14px"><button class="btn gold" data-a="gUp" data-id="${esc(g.id)}">Update progres</button><button class="btn" data-a="gEdit" data-id="${esc(g.id)}">Edit goal</button></div></section>
+  <div class="kpis">
+    <div class="kpi"><span>Total effort</span><b class="num">${fm(effAll)}</b><small>di ${ps.length} project terhubung</small></div>
+    <div class="kpi"><span>Fokus 30 hari</span><b class="num">${fm(m30)}</b><small>${kerja.filter(e=>e.d>=addDays(t,-29)).length} sesi kerja</small></div>
+    <div class="kpi"><span>Update goal</span><b class="num">${(g.up||[]).length}×</b><small>${(g.up||[]).length?'terakhir '+fd(g.up[g.up.length-1].d):'belum pernah'}</small></div>
+    <div class="kpi"><span>Aktivitas terakhir</span><b class="num">${lastAct?(diff(lastAct,t)===0?'Hari ini':diff(lastAct,t)+' hari lalu'):'—'}</b><small>${lastAct?fd(lastAct):'belum ada'}</small></div>
+  </div>
+  <section class="pn"><div class="hd"><h2>Perjalanan progres</h2><span class="pill"><i style="background:var(--gd)"></i>Progres&nbsp;&nbsp;<i style="background:var(--mu)"></i>Seharusnya</span></div><div class="fig" id="gChart" data-id="${esc(g.id)}" style="min-height:240px"><svg></svg></div></section>
+  <div class="grid2" style="align-items:start">
+    <section class="pn"><div class="hd"><h2>Yang sudah dilakukan</h2><span class="pill num">${ev.length} catatan</span></div>
+      <div class="chips">${Object.keys(L).map(k=>`<button class="chip" data-a="gdf" data-k="${k}" style="${gdf===k?'background:var(--ink);color:var(--bg);border-color:var(--ink)':''}">${L[k]} (${k==='semua'?ev.length:ev.filter(e=>e.k===k).length})</button>`).join('')}</div>
+      ${shown.length?`<ul class="list">${tl}</ul>${fe.length>gdn?`<button class="btn sm" data-a="gdMore" style="margin-top:10px">Tampilkan lebih banyak (${fe.length-gdn} lagi)</button>`:''}`:`<p class="empty">Belum ada catatan. Catatan muncul dari Update progres goal, sesi timer di project yang terhubung, dan milestone yang dicentang.</p>`}</section>
+    <section class="pn"><div class="hd"><h2>Project pendukung</h2><span class="pill">${ps.length} project</span></div>
+      ${ps.length?ps.map(p=>`<div style="padding:12px 0;border-top:1px solid var(--ln)"><div class="top2" style="display:flex;justify-content:space-between;gap:8px"><b>${esc(p.name)}</b><span class="st ${p.st}">${STAT[p.st]}</span></div>
+        <div style="margin:8px 0">${bar(prog(p))}</div><div class="meta"><span class="num">${prog(p)}%</span><span class="num">Effort ${fm(p.eff||0)}</span><span>Aktif ${p.last?fd(p.last):'—'}</span></div>
+        ${(p.ms||[]).length?`<div class="ms" style="margin-top:6px">${p.ms.map((m,ix)=>`<button data-a="msTog" data-id="${esc(p.id)}" data-i="${ix}"><span class="chk${m.done?' on':''}"></span><span style="${m.done?'color:var(--mu);text-decoration:line-through':''}">${esc(m.t)}${m.done&&m.at?` · ${fd(m.at)}`:''}</span></button>`).join('')}</div>`:''}
+        ${alerts(p).map(x=>`<div class="alert ${x[0]}" style="margin-top:6px">⚠ ${esc(x[1])}</div>`).join('')}</div>`).join(''):`<p class="empty">Belum ada project. Hubungkan lewat tab Project → Edit → "Mendukung goal".</p>`}</section>
+  </div></div>`;
+}
+let gro=null;
+function drawGChart(){
+  const box=$('#gChart');if(!box)return;const g=gById(box.dataset.id);if(!g)return;
+  const draw=()=>{const svg=box.querySelector('svg'),W=box.clientWidth,H=box.clientHeight;if(!W)return;
+    const pts=Object.keys(S.ghist.days).sort().filter(d=>S.ghist.days[d][g.id]!==undefined).map(d=>[d,S.ghist.days[d][g.id]]);
+    for(const u of g.up||[])if(!pts.some(x=>x[0]===u.d))pts.push([u.d,u.p]);
+    const t=today();if(!pts.some(x=>x[0]===t))pts.push([t,gProg(g)]);pts.sort((a,b)=>a[0].localeCompare(b[0]));
+    const x0=pts[0][0]<gStart(g)?pts[0][0]:gStart(g),x1=gDl(g)>t?gDl(g):t,span=Math.max(1,diff(x0,x1));
+    const L=34,R=12,T=12,B=26,w=W-L-R,h=H-T-B,X=d=>L+diff(x0,d)/span*w,Y=v=>T+h-v/100*h;
+    const narrow=W<520;let o='';
+    for(const v of [0,25,50,75,100])o+=`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--ln)"/><text x="${L-6}" y="${Y(v)+4}" text-anchor="end" font-size="11" fill="var(--mu)">${v}</text>`;
+    o+=`<line x1="${X(gStart(g))}" y1="${Y(0)}" x2="${X(gDl(g))}" y2="${Y(100)}" stroke="var(--mu)" stroke-dasharray="4 4"/>`;
+    o+=`<line x1="${X(t)}" x2="${X(t)}" y1="${T}" y2="${T+h}" stroke="var(--gd)" stroke-opacity=".35"/><text x="${X(t)}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--gd)">hari ini</text>`;
+    if(!narrow){if(X(t)-X(x0)>70)o+=`<text x="${L}" y="${H-8}" font-size="11" fill="var(--mu)">${fd(x0)}</text>`;o+=`<text x="${W-R}" y="${H-8}" text-anchor="end" font-size="11" fill="var(--mu)">${fd(x1)}</text>`}
+    const path=pts.map((p,i)=>(i?'L':'M')+X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1)).join('');
+    o+=`<path d="${path}" fill="none" stroke="var(--gd)" stroke-width="2.5" stroke-linejoin="round"/>`;
+    for(const u of g.up||[])o+=`<circle cx="${X(u.d)}" cy="${Y(u.p)}" r="4.5" fill="var(--gd)" stroke="var(--pn)" stroke-width="2"><title>${fd(u.d)} · ${u.p}%</title></circle>`;
+    const lp=pts[pts.length-1];o+=`<circle cx="${X(lp[0])}" cy="${Y(lp[1])}" r="5" fill="var(--pn)" stroke="var(--gd)" stroke-width="2.5"/>`;
+    svg.setAttribute('viewBox',`0 0 ${W} ${H}`);svg.innerHTML=o};
+  if(gro)gro.disconnect();gro=new ResizeObserver(draw);gro.observe(box);draw();
 }
 function vDash(){
   const r=rates(),t=today(),tg=S.settings.focusTarget||360;
@@ -403,7 +466,7 @@ function vDash(){
       <div class="kpi"><span>Tertinggal</span><b class="num" style="color:${G.late?'var(--red)':'inherit'}">${G.late}</b></div><div class="kpi"><span>Belum ada progres</span><b class="num">${G.none}</b></div><div class="kpi"><span>Perlu update</span><b class="num" style="color:${G.need?'var(--amb)':'inherit'}">${G.need}</b><small>&gt;30 hari tanpa update</small></div>
     </div>
     <div class="grid2"><div><h3 style="margin-bottom:8px">Status per goal</h3>
-      ${worst.length?worst.map(x=>`<div class="hrow grow3"><span style="font-size:14px">${esc(x.g.title)}</span>${gBar(x.g)}<span style="display:flex;gap:6px;align-items:center;justify-content:flex-end"><b class="num" style="font-size:14px">${gProg(x.g)}%</b>${gsPill(x.g)}</span></div>`).join(''):'<p class="empty">Semua goal sudah tercapai.</p>'}</div>
+      ${worst.length?worst.map(x=>`<div class="hrow grow3"><a href="#goal-${esc(x.g.id)}" style="font-size:14px;color:inherit">${esc(x.g.title)}</a>${gBar(x.g)}<span style="display:flex;gap:6px;align-items:center;justify-content:flex-end"><b class="num" style="font-size:14px">${gProg(x.g)}%</b>${gsPill(x.g)}</span></div>`).join(''):'<p class="empty">Semua goal sudah tercapai.</p>'}</div>
       <div><h3 style="margin-bottom:8px">Update terbaru</h3>
       ${feed.length?`<div class="stack" style="gap:8px">${feed.map(x=>`<div class="up"><b>${fd(x.u.d)} · ${esc(x.g.title)} · ${x.u.p}%</b>${x.u.s==='tercapai'?' · 🎯 tercapai':''}${x.u.n?`<div class="meta" style="color:var(--ink)">${esc(x.u.n)}</div>`:''}</div>`).join('')}</div>`:'<p class="empty">Belum ada update goal. Klik "Update progres" di tab Goals setiap ada perkembangan, minimal sebulan sekali.</p>'}
       ${G.need?`<h3 style="margin:16px 0 8px">Perlu di-update</h3><div class="chips">${gl.filter(gNeedUp).map(g=>`<button class="chip" data-a="gUp" data-id="${esc(g.id)}">${esc(g.title)}</button>`).join('')}</div>`:''}</div></div>
@@ -432,9 +495,13 @@ function vDash(){
   </div>`;
 }
 function render(){
-  view=(location.hash||'#hari-ini').slice(1);if(!['hari-ini','project','goals','dashboard'].includes(view))view='hari-ini';
-  document.querySelectorAll('#tabs a').forEach(a=>a.toggleAttribute('aria-current',a.dataset.v===view));
+  view=(location.hash||'#hari-ini').slice(1);let gid=null;
+  if(view.startsWith('goal-')){gid=view.slice(5);if(!gById(gid)&&S.goals.length){view='goals';gid=null}}
+  else if(!['hari-ini','project','goals','dashboard'].includes(view))view='hari-ini';
+  const tab=gid?'goals':view;
+  document.querySelectorAll('#tabs a').forEach(a=>a.toggleAttribute('aria-current',a.dataset.v===tab));
   $('#dateLine').textContent=HARI[new Date().getDay()]+', '+fd(today())+' '+new Date().getFullYear();
+  if(gid){$('#app').innerHTML=gById(gid)?vGoalDetail(gById(gid)):'<p class="empty">Memuat goal…</p>';drawGChart();tick();snapGoals();return}
   $('#app').innerHTML=view==='project'?vProj():view==='goals'?vGoals():view==='dashboard'?vDash():vToday();
   tick();snapGoals();
 }
@@ -524,8 +591,10 @@ document.addEventListener('click',e=>{
   else if(a==='pEdit'){const p=pById(id);p&&editProj(p)}
   else if(a==='pDel'){const p=pById(id);p&&ask(`Hapus project "${p.name}"? Log waktunya tetap tersimpan.`,()=>{S.projects=S.projects.filter(x=>x.id!==id);save('projects');render()})}
   else if(a==='pPlay'){const p=pById(id);p&&startTimer('Kerjakan '+p.name,p.cat,p.id)}
-  else if(a==='msTog'){const p=pById(id);if(p){const m=p.ms[+b.dataset.i];m.done=!m.done;p.last=today();if(p.ms.every(x=>x.done)&&p.st==='jalan')toast('Semua milestone selesai. Ubah status ke Selesai?');save('projects');render()}}
+  else if(a==='msTog'){const p=pById(id);if(p){const m=p.ms[+b.dataset.i];m.done=!m.done;m.at=m.done?today():'';p.last=today();if(p.ms.every(x=>x.done)&&p.st==='jalan')toast('Semua milestone selesai. Ubah status ke Selesai?');save('projects');render()}}
   else if(a==='gAdd')editGoal();
+  else if(a==='gdf'){gdf=b.dataset.k;gdn=40;render()}
+  else if(a==='gdMore'){gdn+=40;render()}
   else if(a==='gUp'){const g=gById(id);g&&updGoal(g)}
   else if(a==='gEdit'){const g=gById(id);g&&editGoal(g)}
   else if(a==='gDel'){const g=gById(id);g&&ask(`Hapus goal "${g.title}"?`,()=>{S.goals=S.goals.filter(x=>x.id!==id);save('goals');render()})}
