@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dav. Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: personal command center — tegas, ringkas, fokus kerja
+   IDEA: stopwatch emas di meja kerja hitam; semua angka berasal dari jam itu
+   PICTURE: jam fokus besar di layar pertama, lalu daftar kerja hari ini
+   COLOUR and TYPE: hitam pekat + emas Hypospot, Plus Jakarta Sans, angka tabular
+   LAYOUT: tab Hari ini / Project / Goals / Dashboard, kolom stack di bawah 760px */
+:root{color-scheme:light dark;
+--bg:light-dark(#f7f5ef,#0a0a0b);--pn:light-dark(#ffffff,#141416);--pn2:light-dark(#f1ede3,#1b1b1e);
+--ln:light-dark(#e3ddcf,#2a2823);--ink:light-dark(#151412,#f2ede2);--mu:light-dark(#6b6556,#a29b8a);
+--gd:light-dark(#9c7622,#d2ab4e);--gd2:light-dark(#c9a24a,#ecd59a);--on:light-dark(#fff,#0a0a0b);
+--red:light-dark(#b8402c,#ef7a62);--amb:light-dark(#a8620f,#f0b35a);
+--c1:light-dark(#9c7622,#d2ab4e);--c2:light-dark(#d4b263,#f1dfa8);--c3:light-dark(#5f4515,#9a7432);--c4:light-dark(#8f8a7e,#77736b);--c5:light-dark(#3f7b72,#6fb0a4)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Plus Jakarta Sans",system-ui,sans-serif;overflow-x:clip}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--gd)}
+.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.top{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:12px max(4vw,14px);background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--ln)}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.mark{width:36px;height:36px;border-radius:10px;background:#0a0a0b;color:#d2ab4e;display:grid;place-items:center;font-weight:800;border:1px solid #d2ab4e}
+.brand b{display:block;font-size:17px;line-height:1.1}.brand small{color:var(--mu);font-size:13px}
+.tabs{display:flex;gap:4px;overflow-x:auto;order:3;width:100%}
+.tabs a{flex:none;padding:9px 14px;border-radius:999px;text-decoration:none;color:var(--mu);font-weight:600;font-size:15px}
+.tabs a[aria-current]{background:var(--ink);color:var(--bg)}
+.sync{font-size:13px;color:var(--mu);display:flex;align-items:center;gap:6px}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--mu)}.sync.ok i{background:var(--gd)}.sync.err i{background:var(--red)}
+@media(min-width:900px){.tabs{order:0;width:auto}}
+main{max-width:1240px;margin:0 auto;padding:22px max(4vw,14px) 60px}
+h1,h2,h3{margin:0;line-height:1.1;text-wrap:balance}
+h1{font-size:clamp(28px,4vw,40px);font-weight:800}h2{font-size:22px;font-weight:700}h3{font-size:17px;font-weight:700}
+.sub{color:var(--mu);margin:6px 0 0}
+.pn{background:var(--pn);border:1px solid var(--ln);border-radius:16px;padding:18px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px}
+@media(max-width:760px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.hd{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.stack{display:grid;gap:16px}
+/* timer */
+.clock{background:#0a0a0b;color:#f2ede2;border-radius:22px;padding:clamp(18px,3vw,30px);border:1px solid #3a3122;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:22px;align-items:center;box-shadow:inset 0 1px 0 #3b3220,0 18px 40px -24px #000}
+@media(max-width:760px){.clock{grid-template-columns:minmax(0,1fr)}}
+.face{font-size:clamp(54px,11vw,104px);font-weight:800;letter-spacing:-.02em;line-height:1;color:#d2ab4e;font-variant-numeric:tabular-nums}
+.face.idle{color:#5a5040}
+.clock .lbl{color:#a29b8a;font-size:14px;margin-top:8px}
+.clock .now{font-size:20px;font-weight:700;margin-top:10px;color:#f2ede2}
+.meter{height:8px;border-radius:9px;background:#2a2823;overflow:hidden;margin-top:14px}.meter b{display:block;height:100%;background:linear-gradient(90deg,#9c7622,#ecd59a);border-radius:9px}
+.clock input,.clock select,.clock textarea{background:#17171a;border-color:#3a3529;color:#f2ede2}
+.clock .chip{background:#1b1b1e;border-color:#3a3529;color:#ecd59a}
+.f{display:grid;gap:10px}.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1 1 140px}
+input,select,textarea{min-height:44px;font-size:16px;padding:9px 12px;border-radius:10px;border:1px solid var(--ln);background:var(--pn2);width:100%}
+textarea{min-height:76px;resize:vertical}
+:focus-visible{outline:2px solid var(--gd);outline-offset:2px}
+.btn{min-height:44px;padding:9px 16px;border-radius:10px;border:1px solid var(--ln);background:var(--pn2);font-weight:600;cursor:pointer;flex:none}
+.btn.gold{background:#d2ab4e;border-color:#d2ab4e;color:#0a0a0b}
+.btn.dark{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.ghost{background:transparent}.btn.sm{min-height:36px;padding:6px 12px;font-size:14px}
+.btn.big{min-height:54px;font-size:17px;padding:12px 24px}
+.btn.danger{color:var(--red)}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 12px;border-radius:999px;border:1px solid var(--ln);background:var(--pn2);font-size:14px;cursor:pointer;flex:none}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--mu);white-space:nowrap}
+.pill i{width:9px;height:9px;border-radius:3px;display:inline-block}
+.st{flex:none;font-size:12.5px;font-weight:700;padding:3px 9px;border-radius:999px;border:1px solid var(--ln);white-space:nowrap}
+.st.jalan{border-color:var(--gd);color:var(--gd)}.st.selesai{background:var(--gd);color:var(--on);border-color:var(--gd)}.st.batal{color:var(--red)}.st.tahan{color:var(--amb)}
+/* lists */
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--ln)}
+.list li:first-child{border-top:0}
+.chk{width:28px;height:28px;flex:none;border-radius:8px;border:2px solid var(--gd);background:transparent;cursor:pointer;display:grid;place-items:center;color:var(--on);margin-top:1px}
+.chk.on{background:var(--gd)}.chk.on::after{content:"";width:10px;height:6px;border:solid currentColor;border-width:0 0 2.5px 2.5px;transform:rotate(-45deg) translate(1px,-1px)}
+.grow{flex:1}.done .t{text-decoration:line-through;color:var(--mu)}
+.t{font-weight:600}.meta{font-size:13px;color:var(--mu);display:flex;gap:4px 10px;flex-wrap:wrap;margin-top:2px}
+.pr{font-size:12px;font-weight:800;padding:2px 7px;border-radius:6px;background:var(--pn2);border:1px solid var(--ln)}
+.pr.P1{background:#d2ab4e;color:#0a0a0b;border-color:#d2ab4e}
+.late{color:var(--red);font-weight:600}
+.x{background:none;border:0;color:var(--mu);cursor:pointer;min-width:36px;min-height:36px;border-radius:8px;font-size:18px;line-height:1}
+.x:hover{background:var(--pn2);color:var(--red)}
+.dots{display:flex;gap:4px;margin-top:5px}.dots s{width:12px;height:12px;border-radius:4px;background:var(--pn2);border:1px solid var(--ln)}.dots s.on{background:var(--gd);border-color:var(--gd)}
+.empty{color:var(--mu);font-size:15px;padding:12px 0}
+details>summary{cursor:pointer;color:var(--gd);font-weight:600;min-height:40px;display:flex;align-items:center}
+/* bars */
+.bar{height:10px;border-radius:9px;background:var(--pn2);overflow:hidden;border:1px solid var(--ln)}.bar b{display:block;height:100%;background:var(--gd);border-radius:9px}
+.pcard{display:grid;gap:10px}
+.pcard .top2{display:flex;gap:8px;align-items:flex-start;justify-content:space-between}
+.nums{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;font-size:13px;color:var(--mu)}.nums b{display:block;color:var(--ink);font-size:17px}
+.alert{font-size:14px;padding:8px 10px;border-radius:10px;border:1px solid;display:flex;gap:8px;align-items:flex-start}
+.alert.red{border-color:color-mix(in srgb,var(--red) 50%,transparent);color:var(--red);background:color-mix(in srgb,var(--red) 8%,transparent)}
+.alert.amb{border-color:color-mix(in srgb,var(--amb) 50%,transparent);color:var(--amb);background:color-mix(in srgb,var(--amb) 8%,transparent)}
+.ms{display:grid;gap:4px}.ms button{display:flex;gap:8px;align-items:center;text-align:left;background:none;border:0;padding:4px 0;cursor:pointer;font-size:14px;min-height:32px}
+.ms button .chk{width:20px;height:20px;border-radius:6px}.ms .chk.on::after{width:8px;height:5px}
+/* dashboard */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:12px}
+.kpi{background:var(--pn);border:1px solid var(--ln);border-radius:14px;padding:14px}
+.kpi span{font-size:13px;color:var(--mu)}.kpi b{display:block;font-size:clamp(24px,3vw,30px);font-weight:800;margin-top:2px}.kpi small{color:var(--mu);font-size:13px}
+.hero{display:grid;grid-template-columns:auto minmax(0,1fr);gap:22px;align-items:center}
+@media(max-width:600px){.hero{grid-template-columns:minmax(0,1fr)}}
+.ring{width:150px;height:150px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--gd) calc(var(--p)*1%),var(--pn2) 0);position:relative}
+.ring::before{content:"";position:absolute;inset:14px;border-radius:50%;background:var(--pn)}
+.ring b{position:relative;font-size:38px;font-weight:800}
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;align-items:end;height:220px;padding-top:10px;position:relative}
+.week .col{display:flex;flex-direction:column;justify-content:flex-end;height:100%;gap:2px;position:relative}
+.week .col i{display:block;border-radius:4px;min-height:2px}
+.week .lab{text-align:center;font-size:12.5px;color:var(--mu);margin-top:6px}
+.week .v{font-size:12px;text-align:center;font-weight:700;margin-bottom:2px}
+.tgt{position:absolute;left:0;right:0;border-top:1.5px dashed var(--gd);pointer-events:none}
+.tgt span{position:absolute;right:0;top:-18px;font-size:12px;color:var(--gd);background:var(--pn);padding:0 4px}
+.hrow{display:grid;grid-template-columns:7.5em minmax(0,1fr) 4.5em;gap:10px;align-items:center;font-size:14px;padding:5px 0}.hrow .bar{height:12px}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--ln);vertical-align:top}th{color:var(--mu);font-weight:600;font-size:13px}td.r,th.r{text-align:right}
+.scroll{overflow-x:auto}
+/* dialog */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:20;display:grid;place-items:center;padding:14px}
+.ov[hidden]{display:none}
+.dlg{background:var(--pn);border:1px solid var(--ln);border-radius:18px;width:min(560px,100%);max-height:92vh;overflow:auto;padding:20px}
+.dlg label{display:grid;gap:5px;font-size:14px;color:var(--mu);font-weight:600}
+.dlg .acts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:30;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.on{opacity:1}
+@media(prefers-reduced-motion:no-preference){.live .face{animation:pulse 2s ease-in-out infinite}@keyframes pulse{50%{opacity:.82}}}
+@media(max-width:600px){table{font-size:13px}.stack2 thead{display:none}.stack2 tr{display:grid;padding-block:10px;border-bottom:1px solid var(--ln)}.stack2 td{display:flow-root;border:0;padding:3px 0;padding-inline-start:7.5em;text-align:start}.stack2 td::before{content:attr(data-l);float:inline-start;width:7em;margin-inline-start:-7.5em;color:var(--mu)}.hrow{grid-template-columns:5.5em minmax(0,1fr) 4em}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="mark">D</span><div><b>Dav. Tracker</b><small id="dateLine"></small></div></div>
+  <nav class="tabs" id="tabs">
+    <a href="#hari-ini" data-v="hari-ini">Hari ini</a>
+    <a href="#project" data-v="project">Project</a>
+    <a href="#goals" data-v="goals">Goals 2027</a>
+    <a href="#dashboard" data-v="dashboard">Dashboard</a>
+  </nav>
+  <span id="sync" class="sync"><i></i><span>Memuat…</span></span>
+</header>
+<main id="app"></main>
+<div id="ov" class="ov" hidden><div class="dlg" role="dialog" aria-modal="true"><form id="dlgForm" class="f"></form></div></div>
+<div id="toast" class="toast" role="status"></div>
+<script>
+{
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const dk=d=>{const x=new Date(d);return x.getFullYear()+'-'+pad(x.getMonth()+1)+'-'+pad(x.getDate())};
+const mk=d=>dk(d).slice(0,7);
+const today=()=>dk(Date.now());
+const addDays=(s,n)=>{const d=new Date(s+'T12:00');d.setDate(d.getDate()+n);return dk(d)};
+const uid=()=>Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-4);
+const diff=(a,b)=>Math.round((new Date(b+'T12:00')-new Date(a+'T12:00'))/864e5);
+const BLN=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+const HARI=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+const fd=s=>{if(!s)return '—';const[y,m,d]=s.split('-');return (+d)+' '+BLN[m-1]+(+y!==new Date().getFullYear()?' '+y:'')};
+const fm=m=>{m=Math.round(m||0);const h=Math.floor(m/60),r=m%60;return h?h+'j'+(r?' '+r+'m':''):r+'m'};
+const hm=ms=>{const d=new Date(ms);return pad(d.getHours())+'.'+pad(d.getMinutes())};
+const CATS=[{k:'hypospot',n:'Hypospot',c:'var(--c1)'},{k:'saas',n:'SaaS',c:'var(--c2)'},{k:'kuliah',n:'Kuliah',c:'var(--c3)'},{k:'belajar',n:'Belajar',c:'var(--c4)'},{k:'pribadi',n:'Pribadi',c:'var(--c5)'}];
+const cat=k=>CATS.find(c=>c.k===k)||CATS[4];
+const STAT={ide:'Ide',jalan:'Berjalan',tahan:'Ditahan',selesai:'Selesai',batal:'Batal'};
+const live=p=>p.st!=='selesai'&&p.st!=='batal';
+
+let S={goals:[],projects:[],tasks:[],habits:{list:[],checks:{}},timer:{active:null},settings:{focusTarget:360},logs:{}};
+const BASE=['goals','projects','tasks','habits','timer','settings'];
+const body=k=>k==='goals'?{items:S.goals}:k==='projects'?{items:S.projects}:k==='tasks'?{items:S.tasks}:k==='habits'?S.habits:k==='timer'?S.timer:k==='settings'?S.settings:{items:S.logs[k.slice(4)]||[]};
+function apply(k,d){
+  if(k==='goals')S.goals=d.items||[];else if(k==='projects')S.projects=d.items||[];else if(k==='tasks')S.tasks=d.items||[];
+  else if(k==='habits')S.habits={list:d.list||[],checks:d.checks||{}};else if(k==='timer')S.timer={active:d.active||null};
+  else if(k==='settings')S.settings=Object.assign({focusTarget:360},d);else if(k.startsWith('log-'))S.logs[k.slice(4)]=d.items||[];
+}
+const clone=o=>JSON.parse(JSON.stringify(o));
+
+/* ---------- storage: lokal dulu, lalu sinkron ke Google Sheets (Apps Script) ---------- */
+let dirty=false;
+const LS='dav-tracker-v1',LSC='dav-tracker-cfg',LSD='dav-tracker-dirty';
+let cfg={url:'',token:''},meta={},dKeys=new Set(),pushT=0,pushing=false,pushAgain=false;
+function loadLocal(){try{const j=JSON.parse(localStorage.getItem(LS)||'null');if(j){meta=j.__meta||{};delete j.__meta;S=Object.assign(S,j)}
+  cfg=Object.assign(cfg,JSON.parse(localStorage.getItem(LSC)||'{}'));dKeys=new Set(JSON.parse(localStorage.getItem(LSD)||'[]'))}catch(e){}}
+function saveLocal(){try{localStorage.setItem(LS,JSON.stringify(Object.assign({},S,{__meta:meta})));localStorage.setItem(LSD,JSON.stringify([...dKeys]))}catch(e){}}
+function save(...ks){const n=Date.now();for(const k of ks){meta[k]=n;dKeys.add(k)}saveLocal();schedPush(2500)}
+function schedPush(ms){if(!cfg.url){setSync('local');return}clearTimeout(pushT);pushT=setTimeout(push,ms)}
+async function push(){
+  if(!cfg.url||!dKeys.size)return;if(pushing){pushAgain=true;return}pushing=true;setSync('save');
+  const keys=[...dKeys],docs={};for(const k of keys)docs[k]={u:meta[k]||Date.now(),d:clone(body(k))};
+  try{const r=await fetch(cfg.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:cfg.token,action:'save',docs})});
+    const j=await r.json();if(!j.ok)throw new Error(j.error||'gagal');
+    for(const k of keys)if(meta[k]===docs[k].u)dKeys.delete(k);saveLocal();setSync('ok')}
+  catch(e){setSync('err','Belum tersinkron · '+(e.message==='token salah'?'token salah':'dicoba lagi'));schedPush(30000)}
+  pushing=false;if(pushAgain){pushAgain=false;push()}
+}
+async function pull(){
+  if(!cfg.url)return;
+  try{const r=await fetch(cfg.url+'?action=load&token='+encodeURIComponent(cfg.token));const j=await r.json();if(!j.ok)throw new Error(j.error||'gagal');
+    let ch=false;const rem=j.docs||{};
+    for(const k of Object.keys(rem)){if(dKeys.has(k))continue;if(!meta[k]||rem[k].u>meta[k]){apply(k,rem[k].d||{});meta[k]=rem[k].u;ch=true}}
+    for(const k of Object.keys(meta))if(!rem[k]||meta[k]>rem[k].u)dKeys.add(k);
+    saveLocal();if(dKeys.size)schedPush(500);else setSync('ok');if(ch)softRender()}
+  catch(e){setSync('err',e.message==='token salah'?'Token salah, cek Pengaturan':'Tidak terhubung ke Google Sheets')}
+}
+function softRender(){const a=document.activeElement;if(a&&$('#app').contains(a)&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)){dirty=true;return}render()}
+document.addEventListener('focusout',()=>setTimeout(()=>{if(dirty&&!(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))){dirty=false;render()}},120));
+function setSync(st,msg){
+  const el=$('#sync');el.className='sync'+(st==='ok'?' ok':st==='err'?' err':'');
+  el.lastChild.textContent=st==='ok'?'Tersinkron ke Google Sheets':st==='save'?'Menyimpan…':st==='local'?'Mode lokal · sambungkan Sheets di Dashboard':st==='err'?msg:'Memuat…';
+}
+
+/* ---------- hitungan ---------- */
+const allLogs=()=>Object.values(S.logs).flat();
+const logsOn=d=>allLogs().filter(l=>l.date===d);
+const minsOn=d=>logsOn(d).reduce((a,l)=>a+(l.min||0),0);
+const pById=id=>S.projects.find(p=>p.id===id);
+const gById=id=>S.goals.find(g=>g.id===id);
+const prog=p=>{const m=p.ms||[];return m.length?Math.round(m.filter(x=>x.done).length/m.length*100):(+p.prog||0)};
+const idle=p=>p.last?Math.max(0,diff(p.last,today())):null;
+function alerts(p){
+  const a=[],i=idle(p),pr=prog(p),ef=p.eff||0;
+  if(p.st==='jalan'&&i!==null&&i>=14)a.push(['red',`Mangkrak ${i} hari, terakhir disentuh ${fd(p.last)}`]);
+  else if(p.st==='jalan'&&i!==null&&i>=7)a.push(['amb',`Mulai dingin: ${i} hari tanpa aktivitas`]);
+  if(live(p)&&ef>=600&&pr<50)a.push(['red',`Effort ${fm(ef)} tapi progres baru ${pr}%`]);
+  if(p.dl&&live(p)&&p.dl<today())a.push(['red',`Lewat deadline ${fd(p.dl)}`]);
+  if(p.st==='tahan'&&i!==null&&i>=30)a.push(['amb',`Ditahan ${i} hari, putuskan lanjut atau batal`]);
+  if(p.st==='batal'&&ef>=120)a.push(['amb',`Batal setelah effort ${fm(ef)}, catat pelajarannya`]);
+  return a;
+}
+const gProg=g=>{const ps=S.projects.filter(p=>p.goal===g.id&&p.st!=='batal');return ps.length?Math.round(ps.reduce((a,p)=>a+prog(p),0)/ps.length):(+g.prog||0)};
+function streak(id){const c=S.habits.checks;let d=today(),n=0;if(!(c[d]||[]).includes(id))d=addDays(d,-1);while((c[d]||[]).includes(id)){n++;d=addDays(d,-1)}return n}
+function rates(){
+  const t=today(),days=[...Array(7)].map((_,i)=>addDays(t,i-6));
+  const tk=S.tasks.filter(x=>x.date&&x.date>=days[0]&&x.date<=t);
+  const task=tk.length?Math.round(tk.filter(x=>x.done).length/tk.length*100):null;
+  const hl=S.habits.list.length;
+  const hab=hl?Math.round(days.reduce((a,d)=>a+(S.habits.checks[d]||[]).filter(id=>S.habits.list.some(h=>h.id===id)).length,0)/(hl*7)*100):null;
+  const fm7=days.reduce((a,d)=>a+minsOn(d),0),tg=S.settings.focusTarget||360;
+  const focus=Math.min(100,Math.round(fm7/7/tg*100));
+  const parts=[task,hab,focus].filter(v=>v!==null);
+  return{days,task,hab,focus,fm7,score:parts.length?Math.round(parts.reduce((a,b)=>a+b,0)/parts.length):0,tkn:tk.length};
+}
+
+/* ---------- UI helpers ---------- */
+const catOpts=s=>CATS.map(c=>`<option value="${c.k}"${c.k===s?' selected':''}>${c.n}</option>`).join('');
+const projOpts=s=>'<option value="">Tanpa project</option>'+S.projects.filter(p=>live(p)||p.id===s).map(p=>`<option value="${esc(p.id)}"${p.id===s?' selected':''}>${esc(p.name)}</option>`).join('');
+const pill=k=>{const c=cat(k);return `<span class="pill"><i style="background:${c.c}"></i>${c.n}</span>`};
+const bar=v=>`<div class="bar"><b style="width:${Math.max(0,Math.min(100,v))}%"></b></div>`;
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),2200)}
+
+/* ---------- views ---------- */
+let view='hari-ini',pf='aktif';
+function vToday(){
+  const t=today(),a=S.timer.active,tg=S.settings.focusTarget||360,mins=minsOn(t);
+  const seen=new Set(),recent=allLogs().sort((x,y)=>y.end-x.end).filter(l=>{const k=l.title.toLowerCase();if(seen.has(k))return false;seen.add(k);return true}).slice(0,5);
+  const clock=a?`
+    <section class="clock live">
+      <div><div class="face num" id="face">00:00:00</div>
+        <div class="now">${esc(a.title)}</div>
+        <div class="lbl">${cat(a.cat).n}${a.proj&&pById(a.proj)?' · '+esc(pById(a.proj).name):''} · mulai ${hm(a.start)}</div>
+        <div class="meter"><b style="width:${Math.min(100,mins/tg*100)}%"></b></div>
+        <div class="lbl num">Fokus hari ini ${fm(mins)} dari target ${fm(tg)} (belum termasuk sesi ini)</div></div>
+      <form class="f" data-f="stop">
+        <label class="lbl" for="tNote">Hasil / progress sesi ini</label>
+        <textarea id="tNote" placeholder="Contoh: draf SOP selesai 2 halaman, tinggal revisi harga">${esc(a.note||'')}</textarea>
+        <div class="row"><button class="btn gold big">Stop & simpan</button><button type="button" class="btn ghost" data-a="tCancel" style="color:#a29b8a">Buang sesi</button></div>
+      </form>
+    </section>`:`
+    <section class="clock">
+      <div><div class="face num idle">00:00:00</div>
+        <div class="now">Lagi ngerjain apa sekarang?</div>
+        <div class="meter"><b style="width:${Math.min(100,mins/tg*100)}%"></b></div>
+        <div class="lbl num">Fokus hari ini ${fm(mins)} dari target ${fm(tg)}</div></div>
+      <form class="f" data-f="start">
+        <input id="tTitle" required maxlength="120" placeholder="Nama aktivitas, misal: Revisi proposal whitelabel" autocomplete="off">
+        <div class="row"><select id="tCat" aria-label="Kategori">${catOpts('hypospot')}</select><select id="tProj" aria-label="Project">${projOpts('')}</select></div>
+        <button class="btn gold big">▶ Mulai timer</button>
+        ${recent.length?`<div class="chips">${recent.map(l=>`<button type="button" class="chip" data-a="quick" data-t="${esc(l.title)}" data-c="${esc(l.cat)}" data-p="${esc(l.proj||'')}">↻ ${esc(l.title)}</button>`).join('')}</div>`:''}
+      </form>
+    </section>`;
+  const due=S.tasks.filter(x=>(!x.done&&x.date&&x.date<=t)||(x.done&&x.doneAt===t)||(!x.done&&!x.date)).sort((x,y)=>(x.done-y.done)||x.pr.localeCompare(y.pr)||(x.date||'').localeCompare(y.date||''));
+  const later=S.tasks.filter(x=>!x.done&&x.date>t).sort((x,y)=>x.date.localeCompare(y.date));
+  const tRow=x=>`<li class="${x.done?'done':''}"><button class="chk${x.done?' on':''}" data-a="tTog" data-id="${esc(x.id)}" aria-label="Tandai selesai"></button>
+    <div class="grow"><div class="t">${esc(x.title)}</div><div class="meta"><span class="pr ${esc(x.pr)}">${esc(x.pr)}</span>${x.proj&&pById(x.proj)?`<span>${esc(pById(x.proj).name)}</span>`:''}${x.date&&x.date<t&&!x.done?`<span class="late">Telat sejak ${fd(x.date)}</span>`:x.date&&x.date>t?`<span>${fd(x.date)}</span>`:''}</div></div>
+    ${!x.done?`<button class="x" data-a="tPlay" data-id="${esc(x.id)}" title="Mulai timer untuk task ini" aria-label="Mulai timer">▶</button>`:''}<button class="x" data-a="tEdit" data-id="${esc(x.id)}" aria-label="Edit">✎</button></li>`;
+  const tasks=`<section class="pn"><div class="hd"><h2>To-do & prioritas</h2><span class="pill num">${due.filter(x=>x.done).length}/${due.length} selesai</span></div>
+    <form class="f" data-f="tAdd" style="margin-bottom:8px"><input id="nTask" required maxlength="160" placeholder="Tambah task…" autocomplete="off">
+      <div class="row"><select id="nPr" aria-label="Prioritas"><option>P1</option><option selected>P2</option><option>P3</option></select><select id="nProj" aria-label="Project">${projOpts('')}</select><input id="nDate" type="date" value="${t}" aria-label="Tanggal"><button class="btn dark">Tambah</button></div></form>
+    ${due.length?`<ul class="list">${due.map(tRow).join('')}</ul>`:'<p class="empty">Belum ada task untuk hari ini.</p>'}
+    ${later.length?`<details><summary>Nanti (${later.length})</summary><ul class="list">${later.map(tRow).join('')}</ul></details>`:''}</section>`;
+  const days=[...Array(7)].map((_,i)=>addDays(t,i-6));
+  const hab=`<section class="pn"><div class="hd"><h2>Habit</h2><span class="pill num">${(S.habits.checks[t]||[]).filter(id=>S.habits.list.some(h=>h.id===id)).length}/${S.habits.list.length} hari ini</span></div>
+    ${S.habits.list.length?`<ul class="list">${S.habits.list.map(h=>{const on=(S.habits.checks[t]||[]).includes(h.id),s=streak(h.id);return `<li><button class="chk${on?' on':''}" data-a="hTog" data-id="${esc(h.id)}" aria-label="Centang ${esc(h.name)}"></button>
+      <div class="grow"><div class="t">${esc(h.name)}</div><div class="dots">${days.map(d=>`<s class="${(S.habits.checks[d]||[]).includes(h.id)?'on':''}" title="${fd(d)}"></s>`).join('')}</div></div>
+      <span class="pill num">${s?'🔥 '+s+' hari':''}</span><button class="x" data-a="hDel" data-id="${esc(h.id)}" aria-label="Hapus habit">×</button></li>`}).join('')}</ul>`:'<p class="empty">Belum ada habit.</p>'}
+    <form class="row" data-f="hAdd" style="margin-top:10px"><input id="nHab" required maxlength="80" placeholder="Habit baru, misal: Baca buku 20 menit"><button class="btn dark">Tambah</button></form></section>`;
+  const tl=logsOn(t).sort((x,y)=>x.start-y.start);
+  const log=`<section class="pn"><div class="hd"><h2>Log aktivitas hari ini</h2><span class="pill num">${tl.length} sesi · ${fm(mins)}</span></div>
+    ${tl.length?`<ul class="list">${tl.map(l=>`<li><div class="num" style="font-weight:700;width:6.4em;flex:none">${hm(l.start)}–${hm(l.end)}</div>
+      <div class="grow"><div class="t">${esc(l.title)}</div><div class="meta">${pill(l.cat)}<span class="num">${fm(l.min)}</span>${l.proj&&pById(l.proj)?`<span>${esc(pById(l.proj).name)}</span>`:''}</div>${l.note?`<div class="meta" style="color:var(--ink)">→ ${esc(l.note)}</div>`:''}</div>
+      <button class="x" data-a="lDel" data-id="${esc(l.id)}" data-m="${esc(l.date.slice(0,7))}" aria-label="Hapus log">×</button></li>`).join('')}</ul>`:'<p class="empty">Belum ada sesi tercatat. Mulai timer di atas setiap ganti aktivitas.</p>'}
+    <details><summary>Lupa nyalain timer? Tambah manual</summary>
+      <form class="f" data-f="lAdd"><input id="mTitle" required maxlength="120" placeholder="Aktivitas">
+        <div class="row"><input id="mDate" type="date" value="${t}" min="${dk(new Date(new Date().getFullYear(),new Date().getMonth()-1,1))}" max="${t}" aria-label="Tanggal"><input id="mStart" type="time" value="09:00" aria-label="Jam mulai"><input id="mMin" type="number" min="1" max="720" value="60" aria-label="Durasi menit" placeholder="Menit"></div>
+        <div class="row"><select id="mCat">${catOpts('hypospot')}</select><select id="mProj">${projOpts('')}</select></div>
+        <input id="mNote" maxlength="200" placeholder="Hasil / progress (opsional)"><button class="btn dark">Simpan log</button></form></details></section>`;
+  const seedB=!S.projects.length&&!S.goals.length?`<section class="pn"><h2>Mulai dari mana?</h2><p class="sub">Isi otomatis 15 goals 2027, 9 project yang sedang berjalan, dan habit awal. Kalau sudah pakai versi Claude, lebih baik pulihkan backup di Dashboard → Pengaturan & backup.</p><div class="row" style="margin-top:10px;justify-content:flex-start"><button class="btn gold" data-a="seed">Isi data awal</button><a class="btn" href="#dashboard" style="text-decoration:none;display:inline-flex;align-items:center">Pulihkan backup</a></div></section>`:'';
+  return `<div class="stack">${seedB}<div><h1>${HARI[new Date().getDay()]}, ${fd(t)}</h1></div>${clock}<div class="grid2">${tasks}${hab}</div>${log}</div>`;
+}
+
+function pCard(p){
+  const pr=prog(p),i=idle(p),al=alerts(p),g=gById(p.goal);
+  return `<article class="pn pcard"><div class="top2"><div><h3>${esc(p.name)}</h3><div class="meta" style="margin-top:4px">${pill(p.cat)}${g?`<span>🎯 ${esc(g.title)}</span>`:''}</div></div><span class="st ${p.st}">${STAT[p.st]||p.st}</span></div>
+    ${bar(pr)}
+    <div class="nums"><div>Progres<b class="num">${pr}%</b></div><div>Effort<b class="num">${fm(p.eff||0)}</b></div><div>Aktif terakhir<b class="num">${i===null?'—':i===0?'Hari ini':i+' hari lalu'}</b></div></div>
+    ${al.map(x=>`<div class="alert ${x[0]}">⚠ ${esc(x[1])}</div>`).join('')}
+    ${(p.ms||[]).length?`<div class="ms">${p.ms.map((m,ix)=>`<button data-a="msTog" data-id="${esc(p.id)}" data-i="${ix}"><span class="chk${m.done?' on':''}"></span><span style="${m.done?'color:var(--mu);text-decoration:line-through':''}">${esc(m.t)}</span></button>`).join('')}</div>`:''}
+    <form class="row" data-f="msAdd" data-id="${esc(p.id)}"><input name="ms" maxlength="120" placeholder="Tambah milestone" aria-label="Milestone baru"><button class="btn sm">+</button></form>
+    ${p.note?`<div class="meta" style="color:var(--ink)">Catatan terakhir: ${esc(p.note)}</div>`:''}
+    ${p.out?`<div class="meta">Hasil: ${esc(p.out)}</div>`:''}
+    <div class="meta">${p.dl?`Deadline ${fd(p.dl)}`:'Tanpa deadline'}${p.start?` · mulai ${fd(p.start)}`:''}</div>
+    <div class="row" style="justify-content:flex-start">${live(p)?`<button class="btn gold sm" data-a="pPlay" data-id="${esc(p.id)}">▶ Kerjakan</button>`:''}<button class="btn sm" data-a="pEdit" data-id="${esc(p.id)}">Edit</button><button class="btn sm ghost danger" data-a="pDel" data-id="${esc(p.id)}">Hapus</button></div></article>`;
+}
+function vProj(){
+  const F={aktif:p=>['ide','jalan','tahan'].includes(p.st),alert:p=>alerts(p).length>0,selesai:p=>p.st==='selesai',batal:p=>p.st==='batal',semua:()=>true};
+  const L={aktif:'Aktif',alert:'Perlu perhatian',selesai:'Selesai',batal:'Batal',semua:'Semua'};
+  const ps=S.projects.filter(F[pf]).sort((a,b)=>alerts(b).length-alerts(a).length||(b.last||'').localeCompare(a.last||''));
+  const nA=S.projects.filter(F.alert).length;
+  return `<div class="stack"><div class="hd"><div><h1>Project & system</h1><p class="sub">${S.projects.filter(F.aktif).length} aktif · ${S.projects.filter(F.selesai).length} selesai · <span style="color:var(--red)">${nA} perlu perhatian</span></p></div><button class="btn gold" data-a="pAdd">+ Project baru</button></div>
+    <div class="chips">${Object.keys(L).map(k=>`<button class="chip" data-a="pf" data-k="${k}" style="${pf===k?'background:var(--ink);color:var(--bg);border-color:var(--ink)':''}">${L[k]} (${S.projects.filter(F[k]).length})</button>`).join('')}</div>
+    ${ps.length?`<div class="grid3">${ps.map(pCard).join('')}</div>`:'<p class="empty">Tidak ada project di filter ini.</p>'}</div>`;
+}
+function vGoals(){
+  const t=today(),from=addDays(t,-29),lg=allLogs().filter(l=>l.date>=from);
+  const card=g=>{const ps=S.projects.filter(p=>p.goal===g.id),pr=gProg(g),mm=lg.filter(l=>ps.some(p=>p.id===l.proj)).reduce((a,l)=>a+l.min,0);
+    return `<article class="pn pcard"><div class="top2"><h3>${esc(g.title)}</h3><b class="num" style="font-size:20px">${pr}%</b></div>${bar(pr)}
+      ${g.ind?`<div class="meta">${esc(g.ind)}</div>`:''}
+      <div class="meta"><span>${ps.length?'Progres rata-rata dari '+ps.length+' project':'Progres manual'}</span><span class="num">Fokus 30 hari: ${fm(mm)}</span>${g.dl?`<span>Target ${fd(g.dl)}</span>`:''}</div>
+      ${ps.length?`<div class="chips">${ps.map(p=>`<span class="chip" style="cursor:default">${esc(p.name)} · <b class="num">${prog(p)}%</b></span>`).join('')}</div>`:`<div class="meta" style="color:var(--amb)">Belum ada project yang mengarah ke goal ini</div>`}
+      <div class="row" style="justify-content:flex-start"><button class="btn sm" data-a="gEdit" data-id="${esc(g.id)}">Edit</button><button class="btn sm ghost danger" data-a="gDel" data-id="${esc(g.id)}">Hapus</button></div></article>`};
+  const grp=(k,n)=>{const gs=S.goals.filter(g=>g.type===k);const avg=gs.length?Math.round(gs.reduce((a,g)=>a+gProg(g),0)/gs.length):0;
+    return `<section class="stack"><div class="hd"><h2>${n}</h2><span class="pill num">Rata-rata ${avg}%</span></div>${gs.length?`<div class="grid3">${gs.map(card).join('')}</div>`:'<p class="empty">Belum ada goal.</p>'}</section>`};
+  return `<div class="stack"><div class="hd"><div><h1>Goals 2027</h1><p class="sub">Tolok ukur semua yang kamu kerjakan. Hubungkan project ke goal supaya progresnya terhitung otomatis.</p></div><button class="btn gold" data-a="gAdd">+ Goal baru</button></div>${grp('bisnis','Bisnis · Hypospot')}${grp('pribadi','Pribadi · David')}</div>`;
+}
+function vDash(){
+  const r=rates(),t=today(),tg=S.settings.focusTarget||360;
+  const dayMins=r.days.map(d=>{const ls=logsOn(d);return{d,tot:ls.reduce((a,l)=>a+l.min,0),by:CATS.map(c=>ls.filter(l=>l.cat===c.k).reduce((a,l)=>a+l.min,0))}});
+  const mx=Math.max(tg,...dayMins.map(x=>x.tot))*1.08;
+  const from=addDays(t,-29),l30=allLogs().filter(l=>l.date>=from),tot30=l30.reduce((a,l)=>a+l.min,0)||1;
+  const byCat=CATS.map(c=>({c,m:l30.filter(l=>l.cat===c.k).reduce((a,l)=>a+l.min,0)})).sort((a,b)=>b.m-a.m);
+  const al=S.projects.flatMap(p=>alerts(p).map(a=>({p,a})));
+  const done=S.projects.filter(p=>p.st==='selesai').length,fail=S.projects.filter(p=>p.st==='batal').length,stuck=S.projects.filter(p=>p.st==='jalan'&&(idle(p)??0)>=14).length;
+  const succ=done+fail?Math.round(done/(done+fail)*100):null;
+  const gAvg=S.goals.length?Math.round(S.goals.reduce((a,g)=>a+gProg(g),0)/S.goals.length):0;
+  const lead=r.score>=75?'Minggu ini on track':r.score>=50?'Lumayan, masih ada ruang naik':'Minggu ini perlu didorong';
+  const why=[`fokus rata-rata ${fm(r.fm7/7)}/hari dari target ${fm(tg)}`,r.task!==null?`${r.task}% task selesai`:null,r.hab!==null?`habit ${r.hab}% konsisten`:null,al.length?`${al.length} alert project`:null].filter(Boolean).join(' · ');
+  return `<div class="stack">
+  <section class="pn hero"><div class="ring" style="--p:${r.score}"><b class="num">${r.score}%</b></div><div><h1>${lead}</h1><p class="sub">Skor produktivitas 7 hari: ${esc(why)}.</p>
+    <div class="chips" style="margin-top:12px"><button class="chip" data-a="go" data-v="hari-ini">Buka hari ini</button>${al.length?`<button class="chip" data-a="goAlert" style="color:var(--red)">Lihat ${al.length} alert</button>`:''}</div></div></section>
+  <div class="kpis">
+    <div class="kpi"><span>Fokus hari ini</span><b class="num">${fm(minsOn(t))}</b><small>target ${fm(tg)}</small></div>
+    <div class="kpi"><span>Fokus 7 hari</span><b class="num">${fm(r.fm7)}</b><small>${r.focus}% dari target</small></div>
+    <div class="kpi"><span>Task selesai (7 hr)</span><b class="num">${r.task===null?'—':r.task+'%'}</b><small>${r.tkn} task terjadwal</small></div>
+    <div class="kpi"><span>Habit konsisten</span><b class="num">${r.hab===null?'—':r.hab+'%'}</b><small>${S.habits.list.length} habit</small></div>
+    <div class="kpi"><span>Project berhasil</span><b class="num">${succ===null?'—':succ+'%'}</b><small>${done} selesai · ${fail} batal · ${stuck} mangkrak</small></div>
+    <div class="kpi"><span>Progres goals 2027</span><b class="num">${gAvg}%</b><small>${S.goals.length} goal</small></div>
+  </div>
+  <div class="grid2">
+    <section class="pn"><div class="hd"><h2>Jam fokus 7 hari</h2><div class="chips">${CATS.map(c=>pill(c.k)).join('')}</div></div>
+      <div class="week">${dayMins.map(x=>`<div><div class="col" style="height:190px"><div class="v num">${x.tot?fm(x.tot):''}</div>${x.by.map((m,i)=>m?`<i style="height:${m/mx*170}px;background:${CATS[i].c}" title="${CATS[i].n} ${fm(m)}"></i>`:'').reverse().join('')}</div><div class="lab">${HARI[new Date(x.d+'T12:00').getDay()].slice(0,3)}</div></div>`).join('')}
+      <div class="tgt" style="bottom:${tg/mx*170+26}px"><span>target ${fm(tg)}</span></div></div></section>
+    <section class="pn"><div class="hd"><h2>Waktu ke mana? (30 hari)</h2><span class="pill num">${fm(l30.reduce((a,l)=>a+l.min,0))}</span></div>
+      ${byCat.map(x=>`<div class="hrow"><span>${pill(x.c.k)}</span><div class="bar"><b style="width:${x.m/tot30*100}%;background:${x.c.c}"></b></div><span class="num" style="text-align:right">${fm(x.m)}</span></div>`).join('')}
+      <h3 style="margin-top:18px">Goals 2027</h3>
+      ${['bisnis','pribadi'].map(k=>{const gs=S.goals.filter(g=>g.type===k),v=gs.length?Math.round(gs.reduce((a,g)=>a+gProg(g),0)/gs.length):0;return `<div class="hrow"><span>${k==='bisnis'?'Bisnis':'Pribadi'}</span>${bar(v)}<span class="num" style="text-align:right">${v}%</span></div>`}).join('')}</section>
+  </div>
+  <section class="pn" id="alertBox"><div class="hd"><h2>Alert: effort besar, hasil belum jadi</h2><span class="pill">${al.length} alert</span></div>
+    ${al.length?`<div class="stack" style="gap:8px">${al.map(x=>`<div class="alert ${x.a[0]}"><b>${esc(x.p.name)}</b><span>— ${esc(x.a[1])}</span></div>`).join('')}</div>`:'<p class="empty">Aman. Tidak ada project mangkrak.</p>'}</section>
+  <section class="pn"><div class="hd"><h2>Effort vs progres project</h2></div><div class="scroll"><table class="stack2"><thead><tr><th>Project</th><th>Status</th><th class="r">Effort</th><th class="r">Progres</th><th class="r">Idle</th></tr></thead><tbody>
+    ${S.projects.slice().sort((a,b)=>(b.eff||0)-(a.eff||0)).map(p=>`<tr><td data-l="Project"><b>${esc(p.name)}</b></td><td data-l="Status"><span class="st ${p.st}">${STAT[p.st]}</span></td><td class="r num" data-l="Effort">${fm(p.eff||0)}</td><td class="r num" data-l="Progres">${prog(p)}%</td><td class="r num" data-l="Idle">${idle(p)===null?'—':idle(p)+' hari'}</td></tr>`).join('')}
+  </tbody></table></div></section>
+  <section class="pn"><details><summary>Pengaturan & backup</summary><div class="f" style="margin-top:8px">
+    <form class="row" data-f="setT"><label style="flex:2 1 220px;display:grid;gap:4px;font-size:14px;color:var(--mu)">Target fokus per hari (menit)<input id="sTg" type="number" min="30" max="900" value="${tg}"></label><button class="btn dark" style="align-self:end">Simpan</button></form>
+    <form class="f" data-f="cfg"><h3>Sinkron Google Sheets</h3>
+      <label style="display:grid;gap:4px;font-size:14px;color:var(--mu)">URL Web App Apps Script<input id="cUrl" type="url" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(cfg.url)}"></label>
+      <label style="display:grid;gap:4px;font-size:14px;color:var(--mu)">Token rahasia (sama dengan TOKEN di Code.gs)<input id="cTok" type="password" value="${esc(cfg.token)}"></label>
+      <div class="row"><button class="btn gold">Simpan & sambungkan</button><button type="button" class="btn" data-a="syncNow">Sinkron sekarang</button></div></form>
+    <div class="row"><button class="btn" data-a="exp">Salin backup (JSON)</button></div>
+    <form class="f" data-f="imp"><textarea id="impT" placeholder="Tempel backup JSON di sini untuk memulihkan data"></textarea><button class="btn">Pulihkan dari backup</button></form></div></details></section>
+  </div>`;
+}
+function render(){
+  view=(location.hash||'#hari-ini').slice(1);if(!['hari-ini','project','goals','dashboard'].includes(view))view='hari-ini';
+  document.querySelectorAll('#tabs a').forEach(a=>a.toggleAttribute('aria-current',a.dataset.v===view));
+  $('#dateLine').textContent=HARI[new Date().getDay()]+', '+fd(today())+' '+new Date().getFullYear();
+  $('#app').innerHTML=view==='project'?vProj():view==='goals'?vGoals():view==='dashboard'?vDash():vToday();
+  tick();
+}
+function tick(){const a=S.timer.active,f=$('#face');if(!a||!f)return;const s=Math.max(0,Math.floor((Date.now()-a.start)/1000));f.textContent=pad(Math.floor(s/3600))+':'+pad(Math.floor(s/60)%60)+':'+pad(s%60)}
+const ticker=setInterval(tick,1000);
+window.addEventListener('hashchange',render);
+
+/* ---------- modal ---------- */
+let onSave=null;
+function modal(title,fields,vals,cb,okLabel){
+  const F=$('#dlgForm');onSave=cb;
+  F.innerHTML=`<h2>${esc(title)}</h2>`+fields.map(f=>{const v=vals[f.k]??'';const id='d_'+f.k;
+    const inp=f.type==='area'?`<textarea id="${id}" name="${f.k}">${esc(v)}</textarea>`:f.type==='sel'?`<select id="${id}" name="${f.k}">${f.opts.map(o=>`<option value="${esc(o[0])}"${String(o[0])===String(v)?' selected':''}>${esc(o[1])}</option>`).join('')}</select>`:`<input id="${id}" name="${f.k}" type="${f.type||'text'}" value="${esc(v)}"${f.req?' required':''}${f.type==='number'?' min="0" max="100"':''}>`;
+    return f.type==='msg'?`<p>${esc(f.label)}</p>`:`<label for="${id}">${esc(f.label)}${f.hint?` <small style="font-weight:400">${esc(f.hint)}</small>`:''}${inp}</label>`}).join('')+
+    `<div class="acts"><button type="button" class="btn ghost" data-a="mClose">Batal</button><button class="btn ${okLabel==='Hapus'?'danger':'gold'}">${esc(okLabel||'Simpan')}</button></div>`;
+  $('#ov').hidden=false;setTimeout(()=>{const x=F.querySelector('input,textarea,select');x&&x.focus()},30);
+}
+const closeM=()=>{$('#ov').hidden=true;onSave=null};
+const ask=(msg,cb)=>modal('Yakin?',[{type:'msg',label:msg}],{},()=>cb(),'Hapus');
+$('#ov').addEventListener('click',e=>{if(e.target.id==='ov'||e.target.dataset.a==='mClose')closeM()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#ov').hidden)closeM()});
+$('#dlgForm').addEventListener('submit',e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target));const cb=onSave;closeM();cb&&cb(v)});
+
+const goalOpts=()=>[['','Tanpa goal'],...S.goals.map(g=>[g.id,(g.type==='bisnis'?'Bisnis · ':'Pribadi · ')+g.title])];
+const msText=p=>(p.ms||[]).map(m=>(m.done?'[x] ':'')+m.t).join('\n');
+const parseMs=s=>String(s||'').split('\n').map(x=>x.trim()).filter(Boolean).map(x=>({t:x.replace(/^\[x\]\s*/i,''),done:/^\[x\]/i.test(x)}));
+function editProj(p){
+  const isNew=!p;p=p||{id:uid(),st:'jalan',cat:'hypospot',start:today(),last:today(),eff:0,ms:[]};
+  modal(isNew?'Project baru':'Edit project',[
+    {k:'name',label:'Nama project / system',req:1},{k:'cat',label:'Area',type:'sel',opts:CATS.map(c=>[c.k,c.n])},
+    {k:'goal',label:'Mendukung goal',type:'sel',opts:goalOpts()},{k:'st',label:'Status',type:'sel',opts:Object.entries(STAT)},
+    {k:'dl',label:'Deadline',type:'date'},{k:'ms',label:'Milestone',hint:'(satu per baris, awali [x] kalau sudah selesai)',type:'area'},
+    {k:'prog',label:'Progres manual %',hint:'(dipakai kalau tidak ada milestone)',type:'number'},
+    {k:'note',label:'Catatan terakhir',type:'area'},{k:'out',label:'Hasil akhir / pelajaran',type:'area'}],
+    Object.assign({},p,{ms:msText(p)}),v=>{
+      Object.assign(p,{name:v.name.trim(),cat:v.cat,goal:v.goal,dl:v.dl,ms:parseMs(v.ms),prog:Math.max(0,Math.min(100,+v.prog||0)),note:v.note,out:v.out});
+      if(v.st!==p.st&&(v.st==='selesai'||v.st==='batal'))p.endAt=today();p.st=v.st;
+      if(isNew)S.projects.push(p);save('projects');render();toast(isNew?'Project ditambahkan':'Project disimpan')});
+}
+function editGoal(g){
+  const isNew=!g;g=g||{id:uid(),type:'bisnis',dl:'2027-12-31',prog:0};
+  modal(isNew?'Goal baru':'Edit goal',[{k:'title',label:'Goal',req:1},{k:'type',label:'Jenis',type:'sel',opts:[['bisnis','Bisnis · Hypospot'],['pribadi','Pribadi · David']]},
+    {k:'ind',label:'Indikator berhasil',type:'area'},{k:'dl',label:'Target tanggal',type:'date'},{k:'prog',label:'Progres manual %',hint:'(dipakai kalau belum ada project terhubung)',type:'number'}],
+    g,v=>{Object.assign(g,{title:v.title.trim(),type:v.type,ind:v.ind,dl:v.dl,prog:Math.max(0,Math.min(100,+v.prog||0))});if(isNew)S.goals.push(g);save('goals');render();toast('Goal disimpan')});
+}
+function editTask(x){
+  modal('Edit task',[{k:'title',label:'Task',req:1},{k:'pr',label:'Prioritas',type:'sel',opts:[['P1','P1 · penting & mendesak'],['P2','P2 · penting'],['P3','P3 · bisa nanti']]},{k:'proj',label:'Project',type:'sel',opts:[['','Tanpa project'],...S.projects.map(p=>[p.id,p.name])]},{k:'date',label:'Tanggal',type:'date'}],
+    x,v=>{Object.assign(x,{title:v.title.trim(),pr:v.pr,proj:v.proj,date:v.date});save('tasks');render()});
+  const F=$('#dlgForm .acts');const b=document.createElement('button');b.type='button';b.className='btn ghost danger';b.textContent='Hapus task';b.style.marginRight='auto';
+  b.onclick=()=>{S.tasks=S.tasks.filter(y=>y.id!==x.id);save('tasks');closeM();render()};F.prepend(b);
+}
+function startTimer(title,c,proj){
+  if(S.timer.active){toast('Stop dulu sesi yang sedang jalan');location.hash='#hari-ini';return}
+  S.timer.active={title:title.trim(),cat:c||'hypospot',proj:proj||'',start:Date.now(),note:''};save('timer');location.hash='#hari-ini';render();toast('Timer jalan');
+}
+function addLog(l){
+  const m=l.date.slice(0,7);(S.logs[m]=S.logs[m]||[]).push(l);
+  const p=l.proj&&pById(l.proj);if(p){p.eff=(p.eff||0)+l.min;if(!p.last||l.date>p.last)p.last=l.date;if(l.note)p.note=l.note;if(p.st==='ide')p.st='jalan'}
+  save('log-'+m,'projects');
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-a]');if(!b||b.closest('#dlgForm'))return;const a=b.dataset.a,id=b.dataset.id;
+  if(a==='quick')startTimer(b.dataset.t,b.dataset.c,b.dataset.p);
+  else if(a==='tCancel')ask('Sesi timer ini dibuang tanpa dicatat.',()=>{S.timer.active=null;save('timer');render()});
+  else if(a==='tTog'){const x=S.tasks.find(y=>y.id===id);if(x){x.done=!x.done;x.doneAt=x.done?today():'';if(x.done&&x.proj&&pById(x.proj)){pById(x.proj).last=today();save('projects')}save('tasks');render()}}
+  else if(a==='tEdit'){const x=S.tasks.find(y=>y.id===id);x&&editTask(x)}
+  else if(a==='tPlay'){const x=S.tasks.find(y=>y.id===id);if(x){const p=pById(x.proj);startTimer(x.title,p?p.cat:'hypospot',x.proj)}}
+  else if(a==='hTog'){const t=today(),c=S.habits.checks[t]=S.habits.checks[t]||[];const i=c.indexOf(id);i<0?c.push(id):c.splice(i,1);
+    const cut=addDays(t,-90);for(const k of Object.keys(S.habits.checks))if(k<cut)delete S.habits.checks[k];save('habits');render()}
+  else if(a==='hDel'){const h=S.habits.list.find(x=>x.id===id);h&&ask(`Hapus habit "${h.name}"?`,()=>{S.habits.list=S.habits.list.filter(x=>x.id!==id);save('habits');render()})}
+  else if(a==='lDel'){const m=b.dataset.m,l=(S.logs[m]||[]).find(x=>x.id===id);l&&ask(`Hapus log "${l.title}" (${fm(l.min)})?`,()=>{S.logs[m]=S.logs[m].filter(x=>x.id!==id);const p=l.proj&&pById(l.proj);if(p){p.eff=Math.max(0,(p.eff||0)-l.min)}save('log-'+m,'projects');render()})}
+  else if(a==='pf'){pf=b.dataset.k;render()}
+  else if(a==='pAdd')editProj();
+  else if(a==='pEdit'){const p=pById(id);p&&editProj(p)}
+  else if(a==='pDel'){const p=pById(id);p&&ask(`Hapus project "${p.name}"? Log waktunya tetap tersimpan.`,()=>{S.projects=S.projects.filter(x=>x.id!==id);save('projects');render()})}
+  else if(a==='pPlay'){const p=pById(id);p&&startTimer('Kerjakan '+p.name,p.cat,p.id)}
+  else if(a==='msTog'){const p=pById(id);if(p){const m=p.ms[+b.dataset.i];m.done=!m.done;p.last=today();if(p.ms.every(x=>x.done)&&p.st==='jalan')toast('Semua milestone selesai. Ubah status ke Selesai?');save('projects');render()}}
+  else if(a==='gAdd')editGoal();
+  else if(a==='gEdit'){const g=gById(id);g&&editGoal(g)}
+  else if(a==='gDel'){const g=gById(id);g&&ask(`Hapus goal "${g.title}"?`,()=>{S.goals=S.goals.filter(x=>x.id!==id);save('goals');render()})}
+  else if(a==='syncNow'){pull()}
+  else if(a==='seed'){for(const k of Object.keys(SEED))apply(k,SEED[k]);save(...Object.keys(SEED));render();toast('Data awal dimuat')}
+  else if(a==='go'){location.hash='#'+b.dataset.v}
+  else if(a==='goAlert'){const el=$('#alertBox');el&&el.scrollIntoView({behavior:'smooth'})}
+  else if(a==='exp'){const txt=JSON.stringify(S);navigator.clipboard.writeText(txt).then(()=>toast('Backup tersalin, simpan di catatanmu'),()=>{$('#impT').value=txt;toast('Salin manual dari kotak di bawah')})}
+});
+document.addEventListener('submit',e=>{
+  const f=e.target;if(f.id==='dlgForm')return;e.preventDefault();const k=f.dataset.f,t=today();
+  if(k==='start')startTimer($('#tTitle').value,$('#tCat').value,$('#tProj').value);
+  else if(k==='stop'){const a=S.timer.active;if(!a)return;const end=Date.now(),min=Math.round((end-a.start)/60000);
+    S.timer.active=null;save('timer');
+    if(min<1){toast('Sesi kurang dari 1 menit, tidak dicatat');render();return}
+    addLog({id:uid(),date:dk(a.start),start:a.start,end,min,title:a.title,cat:a.cat,proj:a.proj,note:$('#tNote').value.trim()});render();toast('Tersimpan: '+fm(min))}
+  else if(k==='tAdd'){S.tasks.push({id:uid(),title:$('#nTask').value.trim(),pr:$('#nPr').value,proj:$('#nProj').value,date:$('#nDate').value||t,done:false,doneAt:''});
+    const cut=addDays(t,-60);S.tasks=S.tasks.filter(x=>!(x.done&&x.doneAt&&x.doneAt<cut));save('tasks');render();setTimeout(()=>$('#nTask')&&$('#nTask').focus(),20)}
+  else if(k==='hAdd'){S.habits.list.push({id:uid(),name:$('#nHab').value.trim()});save('habits');render()}
+  else if(k==='lAdd'){const d=$('#mDate').value||t,[hh,mm]=($('#mStart').value||'09:00').split(':'),st=new Date(d+'T'+pad(hh)+':'+pad(mm)+':00').getTime(),min=Math.max(1,+$('#mMin').value||1);
+    addLog({id:uid(),date:d,start:st,end:st+min*60000,min,title:$('#mTitle').value.trim(),cat:$('#mCat').value,proj:$('#mProj').value,note:$('#mNote').value.trim()});render();toast('Log ditambahkan')}
+  else if(k==='msAdd'){const p=pById(f.dataset.id),v=f.ms.value.trim();if(p&&v){(p.ms=p.ms||[]).push({t:v,done:false});p.last=today();save('projects');render()}}
+  else if(k==='cfg'){cfg={url:$('#cUrl').value.trim(),token:$('#cTok').value.trim()};try{localStorage.setItem(LSC,JSON.stringify(cfg))}catch(_){}
+    for(const x of [...BASE,...Object.keys(S.logs).map(m=>'log-'+m)])if(meta[x])dKeys.add(x);setSync('load');pull();toast('Menyambungkan ke Google Sheets…')}
+  else if(k==='setT'){S.settings.focusTarget=Math.max(30,Math.min(900,+$('#sTg').value||360));save('settings');render();toast('Target disimpan')}
+  else if(k==='imp'){try{const j=JSON.parse($('#impT').value);if(!j||!Array.isArray(j.projects))throw 0;
+      S=Object.assign(S,{goals:j.goals||[],projects:j.projects||[],tasks:j.tasks||[],habits:j.habits||{list:[],checks:{}},settings:j.settings||S.settings,logs:j.logs||{}});
+      save(...BASE,...Object.keys(S.logs).map(m=>'log-'+m));render();toast('Data dipulihkan')}catch(_){toast('Format backup tidak dikenali')}}
+});
+document.addEventListener('input',e=>{if(e.target.id==='tNote'&&S.timer.active){S.timer.active.note=e.target.value;save('timer')}});
+
+/* ---------- start ---------- */
+const SEED={"goals": {"items": [{"id": "g-b1", "type": "bisnis", "title": "Penjualan naik 30–40%", "ind": "Tidak bergantung marketplace; maksimalkan Lazada, Blibli, dan channel B2B", "dl": "2027-12-31", "prog": 0}, {"id": "g-b2", "type": "bisnis", "title": "Branding & awareness", "ind": "Target market fokus, positioning jelas, campaign jangka panjang, kolaborasi brand besar", "dl": "2027-12-31", "prog": 0}, {"id": "g-b3", "type": "bisnis", "title": "Finance: margin & cash flow riil", "ind": "Pressing HPP, cash budgeting, pembukuan, balance sheet", "dl": "2027-12-31", "prog": 0}, {"id": "g-b4", "type": "bisnis", "title": "Operasional: SOP & workflow", "ind": "Stock, racik, order stock, picking-packing runtut, full tracking resi", "dl": "2027-12-31", "prog": 0}, {"id": "g-b5", "type": "bisnis", "title": "Model bisnis baru", "ind": "Auto-refill, reseller/dropship, whitelabel, B2B, produk digital, Hypo-merch", "dl": "2027-12-31", "prog": 0}, {"id": "g-b6", "type": "bisnis", "title": "Ekspansi & usaha baru", "ind": "Produk beda market/niche, berani buka usaha baru, revenue stream lain", "dl": "2027-12-31", "prog": 0}, {"id": "g-b7", "type": "bisnis", "title": "PT road to international", "ind": "Struktur jabatan tidak David-sentris, legalitas, investasi, safe position & assets", "dl": "2027-12-31", "prog": 0}, {"id": "g-b8", "type": "bisnis", "title": "Kantor, gudang & WA official rapi", "ind": "Kanopi, rak gudang, kantor cozy, kandang Fluffy, rekrut admin baru, WA official terstruktur", "dl": "2027-12-31", "prog": 0}, {"id": "g-p1", "type": "pribadi", "title": "Aset & alat penunjang kerja", "ind": "Motor/mobil baru, HP, kamera, mic", "dl": "2027-12-31", "prog": 0}, {"id": "g-p2", "type": "pribadi", "title": "DP rumah atau gudang", "ind": "Jelas dan hati-hati", "dl": "2027-12-31", "prog": 0}, {"id": "g-p3", "type": "pribadi", "title": "Belajar investasi", "ind": "", "dl": "2027-12-31", "prog": 0}, {"id": "g-p4", "type": "pribadi", "title": "Belajar & cari mentor", "ind": "Kursus Inggris/scale up, selesaikan 2–3 buku, mentor dosen/pengusaha, kursus offline untuk relasi", "dl": "2027-12-31", "prog": 0}, {"id": "g-p5", "type": "pribadi", "title": "Hidup bersyukur, sehat, growth", "ind": "Pengetahuan bertambah, lebih wise", "dl": "2027-12-31", "prog": 0}, {"id": "g-p6", "type": "pribadi", "title": "Liburan dalam & luar negeri", "ind": "", "dl": "2027-12-31", "prog": 0}, {"id": "g-p7", "type": "pribadi", "title": "Revenue stream pribadi", "ind": "Produk digital (video, tutorial, apps), affiliate produk sendiri di akun pribadi", "dl": "2027-12-31", "prog": 0}]}, "projects": {"items": [{"id": "p-wl", "name": "Hypospot Whitelabel (Makloon)", "cat": "hypospot", "goal": "g-b5", "st": "jalan", "start": "", "last": "2026-11-24", "eff": 0, "dl": "", "prog": 0, "note": "", "out": "", "ms": [{"t": "Tabel harga & tiering MOQ", "done": true}, {"t": "Proposal whitelabel 2027", "done": true}, {"t": "SOP & form order", "done": true}, {"t": "Landing page whitelabel tayang", "done": true}, {"t": "Spreadsheet customer & keuangan", "done": true}, {"t": "Kalkulator project di Sheets", "done": true}, {"t": "Update website ke 15 produk", "done": false}, {"t": "Penawaran ke customer setia", "done": false}]}, {"id": "p-rnd", "name": "Pipeline R&D Produk", "cat": "hypospot", "goal": "g-b6", "st": "jalan", "start": "", "last": "2026-10-25", "eff": 0, "dl": "", "prog": 0, "note": "", "out": "", "ms": [{"t": "Konsep tahapan pipeline", "done": true}, {"t": "Konsep dashboard disetujui", "done": true}, {"t": "Kode HTML dashboard", "done": false}, {"t": "Sinkron Google Sheets tiap 10 menit", "done": false}, {"t": "Tarik data dari spreadsheet lama", "done": false}]}, {"id": "p-keu", "name": "Dashboard Keuangan (Net Profit)", "cat": "hypospot", "goal": "g-b3", "st": "jalan", "start": "", "last": "2026-10-21", "eff": 0, "dl": "", "prog": 0, "note": "Koneksi ke spreadsheet belum berhasil", "out": "", "ms": [{"t": "Rancangan dashboard revenue, COGS, biaya", "done": true}, {"t": "Cek data ERP Juli 2026", "done": true}, {"t": "Koneksi ke sheet HPP Sistem Otomatis", "done": false}, {"t": "Input bulanan berjalan rutin", "done": false}]}, {"id": "p-mem", "name": "Sistem Membership & Poin", "cat": "hypospot", "goal": "g-b1", "st": "jalan", "start": "", "last": "2026-10-29", "eff": 0, "dl": "", "prog": 0, "note": "", "out": "", "ms": [{"t": "Aturan poin & hadiah", "done": true}, {"t": "Dashboard member HTML", "done": true}, {"t": "Apps Script sheet baru", "done": true}, {"t": "Satukan di sheet List Membership", "done": false}, {"t": "Alert member baru berjalan", "done": false}]}, {"id": "p-ret", "name": "Dashboard Retur Marketplace", "cat": "hypospot", "goal": "g-b4", "st": "jalan", "start": "", "last": "2026-11-23", "eff": 0, "dl": "", "prog": 0, "note": "", "out": "", "ms": [{"t": "Dashboard + menu input retur", "done": true}, {"t": "Tersambung ke sheet REPORT RETUR MP", "done": true}, {"t": "Masuk GitHub via Apps Script", "done": false}]}, {"id": "p-pk", "name": "Product Knowledge Guide Admin", "cat": "hypospot", "goal": "g-b4", "st": "jalan", "start": "", "last": "", "eff": 0, "dl": "", "prog": 0, "note": "", "out": "", "ms": [{"t": "Draf Word dibuat", "done": true}, {"t": "Koreksi & tambahan dari David", "done": false}, {"t": "Dibagikan ke Dimas", "done": false}]}, {"id": "p-ha", "name": "HypoApps", "cat": "saas", "goal": "g-b6", "st": "jalan", "start": "", "last": "2026-08-20", "eff": 0, "dl": "", "prog": 0, "note": "", "out": "", "ms": [{"t": "Spesifikasi modul POS, CRM, Inventory, Payroll, Finance", "done": true}, {"t": "Prototype HTML untuk briefing", "done": true}, {"t": "Simulasi equity & partner", "done": true}, {"t": "Dapat technical co-founder", "done": false}, {"t": "Brief ke developer", "done": false}]}, {"id": "p-fo", "name": "FusiOne", "cat": "saas", "goal": "g-b6", "st": "tahan", "start": "", "last": "2026-07-11", "eff": 0, "dl": "", "prog": 0, "note": "Konsep dilanjutkan lewat HypoApps", "out": "", "ms": [{"t": "BMC, brand, mockup UI, P&L 5 tahun", "done": true}]}, {"id": "p-dt", "name": "Dav. Tracker (system tracking pribadi)", "cat": "pribadi", "goal": "g-p5", "st": "jalan", "start": "2026-11-25", "last": "2026-11-25", "eff": 0, "dl": "", "prog": 0, "note": "", "out": "", "ms": [{"t": "Web app tracker jadi", "done": true}, {"t": "Pakai rutin 7 hari", "done": false}, {"t": "Review mingguan pertama", "done": false}]}]}, "tasks": {"items": [{"id": "t1", "title": "Lanjutkan koneksi dashboard keuangan ke sheet HPP", "pr": "P1", "proj": "p-keu", "date": "2026-11-25", "done": false, "doneAt": ""}, {"id": "t2", "title": "Update website whitelabel ke 15 produk", "pr": "P2", "proj": "p-wl", "date": "2026-11-25", "done": false, "doneAt": ""}, {"id": "t3", "title": "Coba timer tracker seharian", "pr": "P3", "proj": "p-dt", "date": "2026-11-25", "done": false, "doneAt": ""}]}, "habits": {"list": [{"id": "h1", "name": "Olahraga"}, {"id": "h2", "name": "Baca buku 20 menit"}, {"id": "h3", "name": "Belajar investasi 15 menit"}, {"id": "h4", "name": "Review harian di tracker"}], "checks": {}}, "settings": {"focusTarget": 360}, "timer": {"active": null}};
+loadLocal();render();
+if(cfg.url){setSync('load');pull()}else setSync('local');
+setInterval(()=>{if(document.visibilityState==='visible'&&!dKeys.size)pull()},60000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')pull()});
+}
+</script>
+</body>
+</html>
