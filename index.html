@@ -136,7 +136,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;p
     <a href="#goals" data-v="goals">Goals 2027</a>
     <a href="#dashboard" data-v="dashboard">Dashboard</a>
   </nav>
-  <span id="sync" class="sync"><i></i><span>Memuat…</span></span>
+  <button id="sync" class="sync" data-a="openCfg" title="Pengaturan sinkron" style="background:none;border:0;cursor:pointer;min-height:36px;padding:0"><i></i><span>Memuat…</span></button>
 </header>
 <main id="app"></main>
 <div id="ov" class="ov" hidden><div class="dlg" role="dialog" aria-modal="true"><form id="dlgForm" class="f"></form></div></div>
@@ -351,7 +351,8 @@ function vDash(){
   const gAvg=S.goals.length?Math.round(S.goals.reduce((a,g)=>a+gProg(g),0)/S.goals.length):0;
   const lead=r.score>=75?'Minggu ini on track':r.score>=50?'Lumayan, masih ada ruang naik':'Minggu ini perlu didorong';
   const why=[`fokus rata-rata ${fm(r.fm7/7)}/hari dari target ${fm(tg)}`,r.task!==null?`${r.task}% task selesai`:null,r.hab!==null?`habit ${r.hab}% konsisten`:null,al.length?`${al.length} alert project`:null].filter(Boolean).join(' · ');
-  return `<div class="stack">
+  const conn=!cfg.url?`<section class="pn" style="border-color:var(--gd)"><div class="hd" style="margin:0"><div><h2>Belum tersambung ke Google Sheets</h2><p class="sub">Data masih tersimpan di browser ini saja. Sambungkan supaya bisa dibuka dari HP dan laptop lain.</p></div><button class="btn gold" data-a="openCfg">Sambungkan sekarang</button></div></section>`:'';
+  return `<div class="stack">${conn}
   <section class="pn hero"><div class="ring" style="--p:${r.score}"><b class="num">${r.score}%</b></div><div><h1>${lead}</h1><p class="sub">Skor produktivitas 7 hari: ${esc(why)}.</p>
     <div class="chips" style="margin-top:12px"><button class="chip" data-a="go" data-v="hari-ini">Buka hari ini</button>${al.length?`<button class="chip" data-a="goAlert" style="color:var(--red)">Lihat ${al.length} alert</button>`:''}</div></div></section>
   <div class="kpis">
@@ -376,7 +377,7 @@ function vDash(){
   <section class="pn"><div class="hd"><h2>Effort vs progres project</h2></div><div class="scroll"><table class="stack2"><thead><tr><th>Project</th><th>Status</th><th class="r">Effort</th><th class="r">Progres</th><th class="r">Idle</th></tr></thead><tbody>
     ${S.projects.slice().sort((a,b)=>(b.eff||0)-(a.eff||0)).map(p=>`<tr><td data-l="Project"><b>${esc(p.name)}</b></td><td data-l="Status"><span class="st ${p.st}">${STAT[p.st]}</span></td><td class="r num" data-l="Effort">${fm(p.eff||0)}</td><td class="r num" data-l="Progres">${prog(p)}%</td><td class="r num" data-l="Idle">${idle(p)===null?'—':idle(p)+' hari'}</td></tr>`).join('')}
   </tbody></table></div></section>
-  <section class="pn"><details><summary>Pengaturan & backup</summary><div class="f" style="margin-top:8px">
+  <section class="pn" id="cfgBox"><details id="cfgD"><summary>Pengaturan, sinkron Google Sheets & backup</summary><div class="f" style="margin-top:8px">
     <form class="row" data-f="setT"><label style="flex:2 1 220px;display:grid;gap:4px;font-size:14px;color:var(--mu)">Target fokus per hari (menit)<input id="sTg" type="number" min="30" max="900" value="${tg}"></label><button class="btn dark" style="align-self:end">Simpan</button></form>
     <form class="f" data-f="cfg"><h3>Sinkron Google Sheets</h3>
       <label style="display:grid;gap:4px;font-size:14px;color:var(--mu)">URL Web App Apps Script<input id="cUrl" type="url" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(cfg.url)}"></label>
@@ -473,6 +474,7 @@ document.addEventListener('click',e=>{
   else if(a==='gEdit'){const g=gById(id);g&&editGoal(g)}
   else if(a==='gDel'){const g=gById(id);g&&ask(`Hapus goal "${g.title}"?`,()=>{S.goals=S.goals.filter(x=>x.id!==id);save('goals');render()})}
   else if(a==='syncNow'){pull()}
+  else if(a==='openCfg'){const go=()=>{const d=$('#cfgD');if(!d)return;d.open=true;$('#cfgBox').scrollIntoView({behavior:'smooth'});setTimeout(()=>$('#cUrl')&&$('#cUrl').focus(),400)};if(view!=='dashboard'){location.hash='#dashboard';setTimeout(go,60)}else go()}
   else if(a==='seed'){for(const k of Object.keys(SEED))apply(k,SEED[k]);save(...Object.keys(SEED));render();toast('Data awal dimuat')}
   else if(a==='go'){location.hash='#'+b.dataset.v}
   else if(a==='goAlert'){const el=$('#alertBox');el&&el.scrollIntoView({behavior:'smooth'})}
